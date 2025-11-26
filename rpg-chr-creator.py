@@ -7,12 +7,11 @@ try:
 except Exception:
     PIL_AVAILABLE = False
 
-
 class CharacterCreatorApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title('RPG Character Creator - Ordem Paranormal')
-        self.geometry('900x600')
+        self.geometry('1050x600')
         self.resizable(True, True)
 
         self.char = {
@@ -24,10 +23,17 @@ class CharacterCreatorApp(tk.Tk):
         }
 
         self.attributes_list = ['Agilidade', 'Intelecto', 'Vigor', 'Presença', 'Força']
+        self.fixed_skills = [
+            'Acrobacia+', 'Adestramento*', 'Artes*', 'Atletismo', 'Atualidades', 'Ciências*', 'Crime*',
+            'Diplomacia', 'Enganação', 'Fortitude', 'Furtividade+', 'Intimidação', 'Investigação',
+            'Luta', 'Medicina', 'Ocultismo*', 'Percepção', 'Pilotagem*', 'Pontaria', 'Reflexos',
+            'Religião*', 'Sobrevivência', 'Tática*', 'Tecnologia*', 'Vontade'
+        ]
+        self.nex_var = tk.IntVar(value=5)
 
         self._build_ui()
-        # Carregar imagem dos atributos automaticamente ao iniciar
         self.char['attr_image_path'] = 'https://crisordemparanormal.com/assets/attributes-V37qZCrP.png'
+
         if PIL_AVAILABLE:
             self.load_attr_image()
 
@@ -40,38 +46,31 @@ class CharacterCreatorApp(tk.Tk):
         left.pack(side='left', fill='both', expand=True)
         right.pack(side='right', fill='y')
 
-        # Name
         name_frame = ttk.Frame(left)
         name_frame.pack(fill='x', pady=2)
         ttk.Label(name_frame, text='Nome:').pack(side='left')
         self.name_var = tk.StringVar()
         ttk.Entry(name_frame, textvariable=self.name_var).pack(side='left', fill='x', expand=True, padx=6)
 
-        # Use Notebook with three tabs: Attributes+Perícias, Habilidades+Inventário, Descrições
         notebook = ttk.Notebook(left)
         notebook.pack(fill='both', expand=True, pady=6)
 
-        # Tab 1: Atributos + Perícias
         tab_attr = ttk.Frame(notebook)
         notebook.add(tab_attr, text='Atributos / Perícias')
 
-        # left side: attribute image with overlay
+        # Esquerda: atributos
         attr_left = ttk.Frame(tab_attr)
-        attr_right = ttk.Frame(tab_attr)
         attr_left.pack(side='left', fill='y', expand=False)
-        attr_right.pack(side='right', fill='y', expand=False)
 
         attr_frame = ttk.LabelFrame(attr_left, text='Atributos')
         attr_frame.pack(fill='y', expand=False, padx=4, pady=4)
 
-        # Canvas para a imagem dos atributos e caixas de números
         self.attr_canvas = tk.Canvas(attr_frame, width=400, height=300, bg='gray80')
         self.attr_canvas.pack(fill='none', expand=False)
         self.attr_bg_image = None
         self.attr_spinboxes = {}
         self.attr_vars = {}
 
-        # Posições dos atributos na imagem (X (Largura), Y (Altura) em porcentagem)
         self.attr_positions = {
             'Agilidade': (0.5, 0.19),
             'Intelecto': (0.75, 0.40),
@@ -80,38 +79,36 @@ class CharacterCreatorApp(tk.Tk):
             'Força': (0.26, 0.41),
         }
 
-        # Variáveis dos atributos
         for a in self.attributes_list:
             var = tk.IntVar(value=1)
             self.attr_vars[a] = var
 
-        # Barras de Vida, Sanidade e Esforço
         bars_frame = ttk.Frame(attr_frame)
         bars_frame.pack(fill='x', expand=False, pady=(10, 0))
 
+        # NEX
+        nex_row = ttk.Frame(bars_frame)
+        nex_row.pack(fill='x', pady=2)
+        ttk.Label(nex_row, text='NEX%:').pack(side='left', padx=4)
+        nex_spin = ttk.Spinbox(nex_row, from_=5, to=99, increment=5, textvariable=self.nex_var, width=5)
+        nex_spin.pack(side='left')
+
+        # Barras
         self.bars = {}
-        bar_specs = [
-            ('Vida', 'red'),
-            ('Sanidade', '#800080'),
-            ('Esforço', 'orange')
-        ]
-        for i, (label, color) in enumerate(bar_specs):
+        bar_specs = [('Vida', 'red'), ('Sanidade', '#800080'), ('Esforço', 'orange')]
+        for label, color in bar_specs:
             row = ttk.Frame(bars_frame)
             row.pack(fill='x', pady=2)
             ttk.Label(row, text=label+':').pack(side='left', padx=4)
             max_var = tk.IntVar(value=10)
             cur_var = tk.IntVar(value=10)
             self.bars[label] = {'max': max_var, 'cur': cur_var}
-            max_entry = ttk.Entry(row, textvariable=max_var, width=4)
-            max_entry.pack(side='left')
+            ttk.Entry(row, textvariable=max_var, width=4).pack(side='left')
             ttk.Label(row, text='<-Máx').pack(side='left', padx=2)
-            cur_entry = ttk.Entry(row, textvariable=cur_var, width=4)
-            cur_entry.pack(side='left')
+            ttk.Entry(row, textvariable=cur_var, width=4).pack(side='left')
             ttk.Label(row, text='<-Atual').pack(side='left', padx=2)
-            # Canvas da barra
             bar_canvas = tk.Canvas(row, width=120, height=18, bg='white', highlightthickness=1, highlightbackground='#aaa')
             bar_canvas.pack(side='left', padx=8)
-            # Função para atualizar a barra visual
             def update_bar(canvas=bar_canvas, cur=cur_var, maxv=max_var, color=color):
                 canvas.delete('all')
                 try:
@@ -124,29 +121,63 @@ class CharacterCreatorApp(tk.Tk):
                 canvas.create_rectangle(0, 0, 120, 18, fill='#eee', outline='')
                 canvas.create_rectangle(0, 0, int(120*frac), 18, fill=color, outline='')
                 canvas.create_text(60, 9, text=f'{v}/{m}', fill='black', font=('Arial', 9, 'bold'))
-            # Atualiza barra ao mudar valor
             max_var.trace_add('write', lambda *_, c=bar_canvas, cur=cur_var, maxv=max_var, col=color: update_bar(c, cur, maxv, col))
             cur_var.trace_add('write', lambda *_, c=bar_canvas, cur=cur_var, maxv=max_var, col=color: update_bar(c, cur, maxv, col))
             update_bar()
 
-        # The attribute image is fixed to the official online image; load it automatically.
-        ttk.Button(attr_right, text='Recarregar imagem dos atributos', command=self.load_attr_image).pack(fill='x', pady=4, padx=6)
+        # Perícias
+        pericias_frame = ttk.LabelFrame(tab_attr, text='Perícias')
+        pericias_frame.pack(side='left', fill='both', expand=True, pady=6, padx=6)
 
-        # Perícias container on right of tab_attr
-        pericias_frame = ttk.LabelFrame(attr_right, text='Perícias')
-        pericias_frame.pack(fill='y', expand=False, pady=6, padx=6)
-        self.pericias_container = ttk.Frame(pericias_frame)
-        self.pericias_container.pack(fill='both', expand=True)
+        pericias_canvas = tk.Canvas(pericias_frame)
+        scrollbar = ttk.Scrollbar(pericias_frame, orient="vertical", command=pericias_canvas.yview)
+        scrollbar.pack(side="right", fill="y")
+        pericias_canvas.pack(side="left", fill="both", expand=True)
+        pericias_canvas.configure(yscrollcommand=scrollbar.set)
+
+        self.pericias_container = ttk.Frame(pericias_canvas)
+        self.pericias_container.bind("<Configure>", lambda e: pericias_canvas.configure(scrollregion=pericias_canvas.bbox("all")))
+        pericias_canvas.create_window((0, 0), window=self.pericias_container, anchor="nw")
+
+        # Cabeçalho
         header = ttk.Frame(self.pericias_container)
         header.pack(fill='x')
         ttk.Label(header, text='Nome').grid(row=0, column=0, padx=4)
-        ttk.Label(header, text='Nível').grid(row=0, column=1, padx=4)
-        ttk.Button(header, text='Adicionar', command=self._add_pericia_row).grid(row=0, column=2, padx=6)
-        self.pericia_rows = []
+        ttk.Label(header, text='Bônus').grid(row=0, column=1, padx=4)
 
-        # Tab 2: Habilidades + Inventário
+        self.pericia_rows = []
+        for skill in self.fixed_skills:
+            self._add_pericia_row(name=skill, level=0)
+
+        ttk.Label(self.pericias_container,
+                text='+ Penalidade de carga. * Somente treinada.',
+                foreground='gray').pack(anchor='w', pady=(4,0), padx=4)
+
+        # Direita: coluna do personagem (imagem e ações) – agora expandida
+        right = ttk.Frame(tab_attr)
+        right.pack(side='left', fill='both', expand=True, padx=6, pady=6)
+
+        img_frame = ttk.LabelFrame(right, text='Foto do Personagem')
+        img_frame.pack(fill='x', pady=6)
+        self.img_label = ttk.Label(img_frame, text='Nenhuma imagem')
+        self.img_label.pack(padx=6, pady=6)
+        ttk.Button(img_frame, text='Carregar Foto', command=self.load_image).pack(padx=6, pady=2)
+
+        ttk.Button(right, text='Carregar imagem dos atributos', command=self.load_attr_image).pack(fill='x', pady=4)
+
+        actions = ttk.LabelFrame(right, text='Ações')
+        actions.pack(fill='x', pady=10)
+        ttk.Button(actions, text='Salvar Personagem', command=self.save_character).pack(fill='x', pady=4)
+        ttk.Button(actions, text='Carregar Personagem', command=self.load_character).pack(fill='x', pady=4)
+        ttk.Button(actions, text='Limpar', command=self.clear_form).pack(fill='x', pady=4)
+
+        if not PIL_AVAILABLE:
+            msg = 'Recomendado instalar Pillow para suporte a imagens: pip install Pillow'
+            ttk.Label(right, text=msg, foreground='red', wraplength=180).pack(padx=4, pady=6)
+
+        # Tab 2: Habilidades / Rituais / Inventário
         tab_hab = ttk.Frame(notebook)
-        notebook.add(tab_hab, text='Habilidades / Inventário')
+        notebook.add(tab_hab, text='Habilidades / Rituais / Inventário')
 
         hab_left = ttk.LabelFrame(tab_hab, text='Habilidades / Rituais')
         hab_left.pack(side='left', fill='both', expand=True, padx=4, pady=4)
@@ -170,15 +201,13 @@ class CharacterCreatorApp(tk.Tk):
         ttk.Button(header, text='Adicionar', command=self._add_inventario_row).grid(row=0, column=2, padx=6)
         self.inventario_rows = []
 
-        # Tab 3: Descrições (inner Notebook for multiple pages)
+        # Tab 3: Descrições
         tab_desc = ttk.Frame(notebook)
         notebook.add(tab_desc, text='Descrições')
         desc_notebook = ttk.Notebook(tab_desc)
         desc_notebook.pack(fill='both', expand=True)
 
         self.desc_fields = {}
-        # Single Descrições page with stacked sections
-        # Sections: Notas, Aparência & Personalidade, Histórico, Objetivo
         sections = [('Notas', 'notes'), ('Aparência / Personalidade', 'appearance'), ('Histórico', 'history'), ('Objetivo', 'goal')]
         container = ttk.Frame(tab_desc)
         container.pack(fill='both', expand=True, padx=4, pady=4)
@@ -189,32 +218,7 @@ class CharacterCreatorApp(tk.Tk):
             t.pack(fill='both', expand=False, padx=2, pady=2)
             self.desc_fields[key] = t
 
-
-        # Characteristics
-        char_frame = ttk.LabelFrame(left, text='Características Gerais')
-        char_frame.pack(fill='both', expand=True, pady=6)
-        self.char_text = tk.Text(char_frame, height=6)
-        self.char_text.pack(fill='both', expand=True, padx=4, pady=4)
-
-        # Right column: image + actions
-        img_frame = ttk.LabelFrame(right, text='Foto do Personagem')
-        img_frame.pack(fill='x', pady=6, padx=4)
-        self.img_label = ttk.Label(img_frame, text='Nenhuma imagem')
-        self.img_label.pack(padx=6, pady=6)
-        ttk.Button(img_frame, text='Carregar Foto', command=self.load_image).pack(padx=6, pady=2)
-
-        actions = ttk.Frame(right)
-        actions.pack(fill='x', pady=10, padx=4)
-        ttk.Button(actions, text='Salvar Personagem', command=self.save_character).pack(fill='x', pady=4)
-        ttk.Button(actions, text='Carregar Personagem', command=self.load_character).pack(fill='x', pady=4)
-        ttk.Button(actions, text='Limpar', command=self.clear_form).pack(fill='x', pady=4)
-
-        if not PIL_AVAILABLE:
-            msg = 'Recomendado instalar Pillow para suporte a imagens: pip install Pillow'
-            ttk.Label(right, text=msg, foreground='red', wraplength=180).pack(padx=4, pady=6)
-
     def _add_skill_row(self, name='', level=0):
-        # Deprecated: replaced by pericia/habilidade/inventario implementations
         return
     def _remove_skill_row(self, row_frame):
         return
@@ -223,7 +227,6 @@ class CharacterCreatorApp(tk.Tk):
         if not PIL_AVAILABLE:
             messagebox.showwarning('Pillow ausente', 'Instale Pillow para carregar imagens de atributos.')
             return
-        # Try to fetch the official image from the site
         url = 'https://crisordemparanormal.com/assets/attributes-V37qZCrP.png'
         try:
             from urllib.request import urlopen
@@ -235,26 +238,18 @@ class CharacterCreatorApp(tk.Tk):
         except Exception as e:
             messagebox.showerror('Erro', f'Não foi possível carregar imagem online:\n{e}')
 
-    # local image loading removed — attributes image is fixed to official online image
-
     def _set_attr_canvas_image(self, pil_image, source=''):
-        # Resize image to fit canvas while keeping aspect ratio
         w = self.attr_canvas.winfo_width() or 400
         h = self.attr_canvas.winfo_height() or 300
         img = pil_image.copy()
-        # Resize with default thumbnail resampling (compatibility across Pillow versions)
         img.thumbnail((w, h))
         self.attr_bg = ImageTk.PhotoImage(img)
         self.attr_canvas.delete('all')
         self.attr_bg_image = self.attr_canvas.create_image(w//2, h//2, image=self.attr_bg)
-        # store source
         self.char['attr_image_path'] = source
-        # place spinboxes according to positions
         self._place_attr_spinboxes(force_size=(400, 300))
 
-    # Removido: definição duplicada de _place_attr_spinboxes
     def _place_attr_spinboxes(self, force_size=None):
-        # Remove existing canvas windows
         for k, v in list(self.attr_spinboxes.items()):
             try:
                 self.attr_canvas.delete(v['window_id'])
@@ -274,22 +269,16 @@ class CharacterCreatorApp(tk.Tk):
             sb = ttk.Spinbox(self.attr_canvas, from_=0, to=99, textvariable=var, width=4)
             window_id = self.attr_canvas.create_window(x, y, window=sb, anchor='center')
             self.attr_spinboxes[name] = {'widget': sb, 'window_id': window_id, 'var': var}
-        # bind resize to reposition, but always use fixed size
         self.attr_canvas.bind('<Configure>', lambda e: self._place_attr_spinboxes(force_size=(400, 300)))
 
     def _add_pericia_row(self, name='', level=0):
         row = ttk.Frame(self.pericias_container)
         row.pack(fill='x', pady=2, padx=4)
-        name_var = tk.StringVar(value=name)
+        ttk.Label(row, text=name).grid(row=0, column=0, sticky='w')
         level_var = tk.IntVar(value=level)
-        e_name = ttk.Entry(row, textvariable=name_var)
-        e_name.grid(row=0, column=0, sticky='ew')
-        e_level = ttk.Spinbox(row, from_=0, to=10, textvariable=level_var, width=5)
-        e_level.grid(row=0, column=1, padx=6)
-        btn = ttk.Button(row, text='Remover', command=lambda r=row: self._remove_pericia_row(r))
-        btn.grid(row=0, column=2, padx=6)
-        row.columnconfigure(0, weight=1)
-        self.pericia_rows.append((row, name_var, level_var))
+        spin = ttk.Spinbox(row, from_=0, to=15, increment=5, textvariable=level_var, width=5)
+        spin.grid(row=0, column=1, padx=6)
+        self.pericia_rows.append((row, name, level_var))
 
     def _remove_pericia_row(self, row_frame):
         for t in list(self.pericia_rows):
@@ -362,14 +351,16 @@ class CharacterCreatorApp(tk.Tk):
         data = {}
         data['name'] = self.name_var.get()
         data['attributes'] = {k: v.get() for k, v in self.attr_vars.items()}
-        data['pericias'] = [{'name': s[1].get(), 'level': s[2].get()} for s in self.pericia_rows if s[1].get().strip()]
+        data['nex'] = self.nex_var.get()
+        data['pericias'] = [
+            {'name': name, 'bonus': var.get()}
+            for _, name, var in self.pericia_rows if var.get() > 0
+        ]
         data['habilidades'] = [{'name': s[1].get(), 'level': s[2].get()} for s in self.habilidade_rows if s[1].get().strip()]
         data['inventario'] = [{'item': s[1].get(), 'peso': s[2].get()} for s in self.inventario_rows if s[1].get().strip()]
-        data['characteristics'] = self.char_text.get('1.0', 'end').strip()
         data['descriptions'] = {k: t.get('1.0', 'end').strip() for k, t in self.desc_fields.items()}
         data['attr_image_path'] = self.char.get('attr_image_path', '')
         data['image_path'] = self.char.get('image_path', '')
-        # Salvar barras de Vida, Sanidade, Esforço
         data['barras'] = {}
         for nome, bar in self.bars.items():
             data['barras'][nome] = {
@@ -411,7 +402,8 @@ class CharacterCreatorApp(tk.Tk):
             row.destroy()
         self.pericia_rows.clear()
         for s in data.get('pericias', []):
-            self._add_pericia_row(name=s.get('name', ''), level=s.get('level', 0))
+            # Usa 'bonus' se existir; senão, mantém 0
+            self._add_pericia_row(name=s.get('name', ''), level=s.get('bonus', 0))
         # Habilidades
         for row, _, _ in list(self.habilidade_rows):
             row.destroy()
@@ -424,9 +416,7 @@ class CharacterCreatorApp(tk.Tk):
         self.inventario_rows.clear()
         for it in data.get('inventario', []):
             self._add_inventario_row(item=it.get('item', ''), peso=it.get('peso', 1))
-        self.char_text.delete('1.0', 'end')
-        self.char_text.insert('1.0', data.get('characteristics', ''))
-        # Restaurar barras de Vida, Sanidade, Esforço
+        # Restaurar barras
         barras = data.get('barras', {})
         for nome, bar in self.bars.items():
             vals = barras.get(nome, {})
@@ -453,17 +443,15 @@ class CharacterCreatorApp(tk.Tk):
                     self.img_label.config(text=os.path.basename(imgp), image='')
             else:
                 self.img_label.config(text=os.path.basename(imgp), image='')
-        # Attribute background image
+        # Imagem de atributos
         attr_imgp = data.get('attr_image_path', '')
         if attr_imgp:
-            # if path is local
             if PIL_AVAILABLE:
                 try:
                     if os.path.exists(attr_imgp):
                         img = Image.open(attr_imgp)
                         self._set_attr_canvas_image(img, source=attr_imgp)
                     else:
-                        # try loading from URL
                         from urllib.request import urlopen
                         from io import BytesIO
                         resp = urlopen(attr_imgp, timeout=6)
@@ -471,6 +459,7 @@ class CharacterCreatorApp(tk.Tk):
                         self._set_attr_canvas_image(img, source=attr_imgp)
                 except Exception:
                     pass
+        self.nex_var.set(data.get('nex', 5))
 
     def clear_form(self):
         self.name_var.set('')
@@ -485,16 +474,13 @@ class CharacterCreatorApp(tk.Tk):
         for r, _, _ in list(self.inventario_rows):
             r.destroy()
         self.inventario_rows.clear()
-        self.char_text.delete('1.0', 'end')
         for t in self.desc_fields.values():
             t.delete('1.0', 'end')
-        # Limpar barras de Vida, Sanidade e Esforço
         for bar in self.bars.values():
             bar['max'].set(10)
             bar['cur'].set(10)
         self.img_label.config(image='', text='Nenhuma imagem')
         self.char['image_path'] = ''
-
 
 if __name__ == '__main__':
     app = CharacterCreatorApp()
